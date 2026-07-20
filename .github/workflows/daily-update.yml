@@ -1,0 +1,24 @@
+name: Economy Map 3.0 - Daily Data Update
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install requests pandas scipy
+      - run: python scripts/economy-map-3-data-pipeline.py
+      - run: python scripts/build-site.py
+      - run: |
+          git config user.name "Economy Map Bot"
+          git config user.email "bot@welcometoyourgalaxy.com"
+          git add -A
+          git diff --cached --quiet || (git commit -m "Auto-update" && git push)
