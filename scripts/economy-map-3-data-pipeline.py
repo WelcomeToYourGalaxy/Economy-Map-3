@@ -1,8 +1,3 @@
-# Delete the broken one
-rm scripts/economy-map-3-data-pipeline.py
-
-# Create corrected version
-cat > scripts/economy-map-3-data-pipeline.py << 'PYTHON'
 #!/usr/bin/env python3
 import requests
 import json
@@ -36,7 +31,6 @@ def run_pipeline():
     
     logger.info("\n[FETCH] Getting data from all sources...\n")
     
-    # Dummy data (APIs failing gracefully)
     sector_data = {
         '22': {'name': 'Utilities', 'carbon': 450, 'output': 500},
         '23': {'name': 'Construction', 'carbon': 210, 'output': 300},
@@ -53,7 +47,6 @@ def run_pipeline():
     logger.info(f"Sectors: {len(sector_data)}")
     logger.info(f"States: {len(state_data)}\n")
     
-    # Save to JSON
     output = {
         'year': 2022,
         'sectors': sector_data,
@@ -64,14 +57,11 @@ def run_pipeline():
     with open(DATA_DIR / "economy-map-3-data.json", 'w') as f:
         json.dump(output, f, indent=2)
     
-    logger.info(f"[EXPORT] Data exported to {DATA_DIR / 'economy-map-3-data.json'}\n")
+    logger.info(f"[EXPORT] Data exported\n")
     
     print("="*70)
     print("✓ PIPELINE COMPLETE")
-    print("="*70)
-    print(f"\nData saved: {DB_FILE}")
-    print(f"JSON output: {DATA_DIR / 'economy-map-3-data.json'}\n")
+    print("="*70 + "\n")
 
 if __name__ == '__main__':
     run_pipeline()
-PYTHON
