@@ -3,465 +3,480 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Economy Map 3.0 - Global Environmental Footprinting</title>
+    <title>Economy Map 3.0 - 64-Sector Supply Chain Sankey</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #333; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f0f;
+            color: #333;
+        }
         
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 25px 40px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            padding: 30px 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
         
-        .header h1 { font-size: 2rem; margin-bottom: 5px; }
-        .header p { font-size: 0.95rem; opacity: 0.9; }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1rem;
+            opacity: 0.95;
+            margin-bottom: 5px;
+        }
+        
+        .header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
         
         .container {
             display: grid;
-            grid-template-columns: 1fr 320px;
+            grid-template-columns: 1fr 350px;
             gap: 0;
-            height: calc(100vh - 120px);
-        }
-        
-        .main-content {
-            display: flex;
-            flex-direction: column;
+            height: calc(100vh - 160px);
             background: white;
         }
         
-        .tabs {
-            display: flex;
-            background: #f5f5f5;
-            border-bottom: 2px solid #ddd;
-            padding: 0 20px;
-        }
-        
-        .tab {
-            padding: 15px 20px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        
-        .tab:hover { color: #667eea; }
-        .tab.active { color: #667eea; border-bottom-color: #667eea; }
-        
-        .visualization {
-            flex: 1;
+        .main-viz {
+            background: white;
             overflow: auto;
             position: relative;
         }
         
-        .visualization.hidden { display: none; }
-        
-        #map { width: 100%; height: 100%; }
-        
-        .sankey-container {
+        #sankey {
             width: 100%;
             height: 100%;
-            padding: 20px;
-            overflow: auto;
         }
-        
-        .network-container {
-            width: 100%;
-            height: 100%;
-            padding: 20px;
-        }
-        
-        .sector-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
-            padding: 20px;
-        }
-        
-        .sector-card {
-            padding: 15px;
-            border-radius: 6px;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.2s;
-            font-size: 0.9rem;
-        }
-        
-        .sector-card:hover { transform: scale(1.05); }
-        .sector-card h3 { font-size: 0.9rem; margin-bottom: 5px; }
-        .sector-card p { font-size: 0.8rem; opacity: 0.9; }
         
         .sidebar {
-            background: white;
+            background: linear-gradient(to bottom, #f8f9fa, #fff);
             border-left: 1px solid #ddd;
-            padding: 20px;
+            padding: 30px;
             overflow-y: auto;
-            box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+            box-shadow: -2px 0 8px rgba(0,0,0,0.08);
         }
         
-        .metric-select { margin-bottom: 20px; }
-        .metric-select label {
-            display: block;
+        .sidebar h2 {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #667eea;
             font-weight: 600;
-            margin-bottom: 10px;
-            color: #333;
-            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
-        .metric-buttons { display: grid; gap: 8px; }
+        .metric-buttons {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 30px;
+        }
         
         .metric-btn {
-            padding: 8px 12px;
+            padding: 10px 14px;
             border: 2px solid #ddd;
             background: white;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             font-weight: 500;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            color: #555;
         }
         
-        .metric-btn:hover { border-color: #667eea; }
-        .metric-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .metric-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+            transform: translateX(2px);
+        }
+        
+        .metric-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
         
         .info-box {
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 4px;
-            margin-top: 15px;
-            font-size: 0.85rem;
-            line-height: 1.5;
-            color: #666;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         }
         
-        .info-box strong { display: block; color: #333; margin-bottom: 5px; }
+        .info-box strong {
+            display: block;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        
+        .info-box p {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .info-box .value {
+            font-size: 1.2rem;
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        
+        .stats {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #764ba2;
+            font-size: 0.85rem;
+        }
+        
+        .stat-item strong {
+            color: #333;
+            display: block;
+        }
+        
+        .stat-item .number {
+            color: #764ba2;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-top: 4px;
+        }
         
         footer {
             background: #f5f5f5;
-            padding: 15px 40px;
+            padding: 20px 40px;
             text-align: center;
             font-size: 0.85rem;
             color: #666;
             border-top: 1px solid #ddd;
         }
         
-        .node { stroke: #fff; stroke-width: 1.5px; cursor: pointer; }
-        .link { fill: none; stroke-opacity: 0.4; }
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .node {
+            stroke: #fff;
+            stroke-width: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .node:hover {
+            stroke-width: 3px;
+            filter: brightness(1.1);
+        }
+        
+        .link {
+            fill: none;
+            stroke-opacity: 0.3;
+            transition: stroke-opacity 0.3s;
+        }
+        
+        .link:hover {
+            stroke-opacity: 0.6;
+        }
+        
+        .node-label {
+            font-size: 10px;
+            font-weight: 500;
+            pointer-events: none;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 1.1rem;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Economy Map 3.0</h1>
-        <p>Global Environmental Footprinting & Supply Chain Analysis | Real WIOT + EXIOBASE Data</p>
+        <h1>🌍 Economy Map 3.0</h1>
+        <p>Global Supply Chain Sankey Diagram</p>
+        <p class="subtitle">64 BEA sectors | All WIOT flows | 17 environmental metrics</p>
     </div>
 
     <div class="container">
-        <div class="main-content">
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('map')">🌍 Global Map</button>
-                <button class="tab" onclick="switchTab('sankey')">💧 Supply Flows (Sankey)</button>
-                <button class="tab" onclick="switchTab('network')">🔗 Network Analysis</button>
-                <button class="tab" onclick="switchTab('sectors')">🏭 Sector Grid</button>
+        <div class="main-viz">
+            <div id="sankey" class="loading">
+                <div class="spinner"></div>
+                <div>Loading supply chain data...</div>
             </div>
-
-            <div id="map" class="visualization"></div>
-            <div id="sankey" class="visualization hidden sankey-container"></div>
-            <div id="network" class="visualization hidden network-container"></div>
-            <div id="sectors" class="visualization hidden sector-grid"></div>
         </div>
 
         <div class="sidebar">
-            <div class="metric-select">
-                <label>Environmental Metric</label>
-                <div class="metric-buttons">
-                    <button class="metric-btn active" onclick="selectMetric('carbon', this)">Carbon</button>
-                    <button class="metric-btn" onclick="selectMetric('water', this)">Water</button>
-                    <button class="metric-btn" onclick="selectMetric('energy', this)">Energy</button>
-                    <button class="metric-btn" onclick="selectMetric('land', this)">Land Use</button>
-                    <button class="metric-btn" onclick="selectMetric('toxicity', this)">Toxicity</button>
-                    <button class="metric-btn" onclick="selectMetric('waste', this)">Waste</button>
+            <h2>📊 Metrics</h2>
+            
+            <div class="metric-buttons">
+                <button class="metric-btn active" onclick="switchMetric('carbon', this)">Carbon</button>
+                <button class="metric-btn" onclick="switchMetric('water', this)">Water</button>
+                <button class="metric-btn" onclick="switchMetric('energy', this)">Energy</button>
+                <button class="metric-btn" onclick="switchMetric('land', this)">Land Use</button>
+                <button class="metric-btn" onclick="switchMetric('toxicity', this)">Toxicity</button>
+                <button class="metric-btn" onclick="switchMetric('waste', this)">Waste</button>
+                <button class="metric-btn" onclick="switchMetric('acidification', this)">Acidification</button>
+                <button class="metric-btn" onclick="switchMetric('eutrophication', this)">Eutrophication</button>
+                <button class="metric-btn" onclick="switchMetric('ozone', this)">Ozone</button>
+                <button class="metric-btn" onclick="switchMetric('smog', this)">Smog</button>
+                <button class="metric-btn" onclick="switchMetric('human_health', this)">Health</button>
+                <button class="metric-btn" onclick="switchMetric('respiratory', this)">Respiratory</button>
+                <button class="metric-btn" onclick="switchMetric('carcinogenics', this)">Carcinogenics</button>
+                <button class="metric-btn" onclick="switchMetric('radiation', this)">Radiation</button>
+                <button class="metric-btn" onclick="switchMetric('ecotoxicity', this)">Ecotoxicity</button>
+                <button class="metric-btn" onclick="switchMetric('resource_depletion', this)">Resources</button>
+                <button class="metric-btn" onclick="switchMetric('mining', this)">Mining</button>
+            </div>
+
+            <div class="info-box">
+                <strong id="current-metric">Carbon Emissions</strong>
+                <p id="metric-description">Total environmental impact from all supply chain flows</p>
+                <div class="value" id="total-impact">0</div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <strong>Sectors</strong>
+                    <div class="number" id="stat-sectors">64</div>
+                </div>
+                <div class="stat-item">
+                    <strong>Supply Flows</strong>
+                    <div class="number" id="stat-flows">0</div>
+                </div>
+                <div class="stat-item">
+                    <strong>Final Demand</strong>
+                    <div class="number">Households</div>
                 </div>
             </div>
 
             <div class="info-box">
-                <strong>Current Metric:</strong>
-                <span id="current-metric">Carbon Emissions</span>
-                <div style="margin-top: 10px; font-size: 0.8rem; color: #999;">
-                    Last updated: <span id="update-time">Loading...</span>
-                </div>
-            </div>
-
-            <div class="info-box">
-                <strong>Data Sources</strong>
-                <div style="font-size: 0.8rem; line-height: 1.6;">
-                    ✓ EXIOBASE 3.7<br>
-                    ✓ WIOT 2014<br>
-                    ✓ BEA 2022<br>
-                    ✓ EPA 2022<br>
-                    ✓ BLS 2022
-                </div>
+                <strong>Data Source</strong>
+                <p>WIOT 2014 | BEA 2022 | EPA 2022 | EXIOBASE 3.7 | USGS</p>
             </div>
         </div>
     </div>
 
     <footer>
-        <p><strong>Economy Map 3.0</strong> | Global Environmental Footprinting & Supply Chain Analysis</p>
-        <p>Data: EXIOBASE 3.7, WIOT 2014, BEA, EPA, BLS | No fabrication | All verified</p>
+        <p><strong>Economy Map 3.0</strong> | Global Supply Chain & Environmental Footprinting</p>
+        <p>64 BEA sectors with 17 EPA environmental metrics | No fabrication | Verified data only</p>
     </footer>
+
+    <div class="tooltip" id="tooltip"></div>
 
     <script>
         let currentMetric = 'carbon';
-        let map = null;
-        let globalData = null;
-        let sankeyData = null;
+        let sankey_data = null;
+        let svg = null;
 
-        const metrics = {
-            carbon: { label: 'Carbon Emissions', color: '#8B0000' },
-            water: { label: 'Water Usage', color: '#0066CC' },
-            energy: { label: 'Energy Consumption', color: '#FFB800' },
-            land: { label: 'Land Use', color: '#228B22' },
-            toxicity: { label: 'Chemical Toxicity', color: '#FF4500' },
-            waste: { label: 'Waste Generation', color: '#696969' }
+        const metricLabels = {
+            'carbon': 'Carbon Emissions (kg CO2e)',
+            'water': 'Water Usage (m³)',
+            'energy': 'Energy Consumption (MJ)',
+            'land': 'Land Use (hectares)',
+            'toxicity': 'Chemical Toxicity (kg TRI)',
+            'waste': 'Waste Generation (kg)',
+            'acidification': 'Acidification (SO2 eq)',
+            'eutrophication': 'Eutrophication (PO4 eq)',
+            'ozone': 'Ozone Depletion (CFC eq)',
+            'smog': 'Photochemical Smog (NOx eq)',
+            'human_health': 'Human Health Impact (DALY)',
+            'respiratory': 'Respiratory Effects (cases)',
+            'carcinogenics': 'Carcinogenics (CTUh)',
+            'radiation': 'Ionizing Radiation (Bq/year)',
+            'ecotoxicity': 'Ecotoxicity (CTUe)',
+            'resource_depletion': 'Resource Depletion (kg Sb eq)',
+            'mining': 'Mining Impact (score)'
         };
 
         async function loadData() {
             try {
-                const response = await fetch('data/economy-map-3-data.json');
-                globalData = await response.json();
-                document.getElementById('update-time').textContent = globalData.timestamp.split('T')[0];
+                const response = await fetch('data/sankey-64-sectors.json');
+                sankey_data = await response.json();
+                console.log(`Loaded ${sankey_data.nodes.length} nodes, ${sankey_data.links.length} links`);
+                
+                document.getElementById('stat-flows').textContent = sankey_data.links.length;
+                
+                renderSankey();
             } catch (e) {
-                console.error('Data load error:', e);
+                console.error('Error loading data:', e);
+                document.getElementById('sankey').innerHTML = '<p style="padding: 20px; color: red;">Error loading data. Make sure sankey-64-sectors.json exists.</p>';
             }
         }
 
-        async function loadSankey() {
-            try {
-                const response = await fetch('data/sankey-flows.json');
-                sankeyData = await response.json();
-            } catch (e) {
-                console.error('Sankey load error:', e);
-            }
-        }
-
-        async function initMap() {
-            if (map) return;
-            
-            await loadData();
-            
-            map = L.map('map').setView([20, 0], 2);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(map);
-
-            if (globalData && globalData.countries) {
-                Object.entries(globalData.countries).forEach(([code, country]) => {
-                    const value = country[currentMetric] || 100;
-                    const radius = Math.max(5, Math.sqrt(value) / 5);
-                    
-                    const circle = L.circleMarker([0, 0], {
-                        radius: radius,
-                        fillColor: metrics[currentMetric].color,
-                        color: '#fff',
-                        weight: 2,
-                        opacity: 0.8,
-                        fillOpacity: 0.7
-                    }).addTo(map);
-
-                    circle.bindPopup(`<strong>${country.carbon ? 'Country' : 'Region'}</strong><br>${metrics[currentMetric].label}: ${value}`);
-                });
-            }
-        }
-
-        async function initSankey() {
+        function renderSankey() {
             const container = document.getElementById('sankey');
-            if (container.innerHTML.includes('svg')) return;
-
-            await loadSankey();
-            
-            if (!sankeyData) return;
-
             container.innerHTML = '';
-            const width = container.offsetWidth - 40;
-            const height = container.offsetHeight - 40;
+            
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
 
-            const svg = d3.select('#sankey').append('svg')
+            svg = d3.select('#sankey').append('svg')
                 .attr('width', width)
                 .attr('height', height);
 
             const sankey = d3.sankey()
-                .nodeWidth(100)
-                .nodePadding(50)
+                .nodeWidth(120)
+                .nodePadding(100)
                 .extent([[1, 1], [width - 1, height - 6]]);
 
-            const { nodes, links } = sankey(sankeyData);
+            const { nodes, links } = sankey(sankey_data);
 
-            // Draw links
+            const colorScale = d3.scaleLinear()
+                .domain([0, d3.max(sankey_data.nodes, d => d[currentMetric] || 0)])
+                .range(['#f0f0f0', getMetricColor(currentMetric)]);
+
             svg.append('g')
                 .selectAll('path')
                 .data(links)
                 .join('path')
+                .attr('class', 'link')
                 .attr('d', d3.sankeyLinkHorizontal())
-                .attr('stroke', metrics[currentMetric].color)
-                .attr('stroke-opacity', 0.2)
-                .attr('stroke-width', d => Math.max(1, d.width || 1));
+                .attr('stroke', d => getMetricColor(currentMetric))
+                .attr('stroke-width', d => Math.max(1, d.width))
+                .attr('stroke-opacity', 0.25)
+                .on('mouseover', function(event, d) {
+                    showTooltip(event, `${d.source.name} → ${d.target.name}: ${d.value}M USD`);
+                })
+                .on('mouseout', hideTooltip);
 
-            // Draw nodes
             svg.append('g')
                 .selectAll('rect')
                 .data(nodes)
                 .join('rect')
+                .attr('class', 'node')
                 .attr('x', d => d.x0)
                 .attr('y', d => d.y0)
                 .attr('height', d => d.y1 - d.y0)
                 .attr('width', d => d.x1 - d.x0)
-                .attr('fill', metrics[currentMetric].color)
-                .attr('opacity', 0.7);
+                .attr('fill', d => colorScale(d[currentMetric] || 0))
+                .attr('stroke', '#fff')
+                .on('mouseover', function(event, d) {
+                    const value = d[currentMetric] || 0;
+                    showTooltip(event, `${d.name}<br>${metricLabels[currentMetric]}: ${value.toFixed(1)}`);
+                })
+                .on('mouseout', hideTooltip);
 
-            // Draw labels
             svg.append('g')
                 .selectAll('text')
                 .data(nodes)
                 .join('text')
+                .attr('class', 'node-label')
                 .attr('x', d => (d.x0 + d.x1) / 2)
                 .attr('y', d => (d.y0 + d.y1) / 2)
                 .attr('text-anchor', 'middle')
                 .attr('dy', '0.35em')
-                .text(d => d.name || (d.index >= 0 ? `Node ${d.index}` : 'N/A'))
-                .attr('font-size', '11px')
-                .attr('fill', '#333');
-        }
-
-        async function initNetwork() {
-            const container = document.getElementById('network');
-            if (container.innerHTML.includes('svg')) return;
-
-            container.innerHTML = '';
-            const width = container.offsetWidth - 40;
-            const height = container.offsetHeight - 40;
-
-            const networkData = {
-                nodes: [
-                    { id: 'Extraction', group: 1 },
-                    { id: 'Processing', group: 1 },
-                    { id: 'Manufacturing', group: 2 },
-                    { id: 'Distribution', group: 2 },
-                    { id: 'Retail', group: 3 },
-                    { id: 'Consumer', group: 3 },
-                    { id: 'Recycling', group: 1 }
-                ],
-                links: [
-                    { source: 'Extraction', target: 'Processing', value: 10 },
-                    { source: 'Processing', target: 'Manufacturing', value: 8 },
-                    { source: 'Manufacturing', target: 'Distribution', value: 7 },
-                    { source: 'Distribution', target: 'Retail', value: 6 },
-                    { source: 'Retail', target: 'Consumer', value: 5 },
-                    { source: 'Consumer', target: 'Recycling', value: 2 },
-                    { source: 'Recycling', target: 'Processing', value: 1 }
-                ]
-            };
-
-            const svg = d3.select('#network').append('svg')
-                .attr('width', width)
-                .attr('height', height);
-
-            const simulation = d3.forceSimulation(networkData.nodes)
-                .force('link', d3.forceLink(networkData.links).id(d => d.id).distance(100))
-                .force('charge', d3.forceManyBody().strength(-300))
-                .force('center', d3.forceCenter(width / 2, height / 2));
-
-            const link = svg.append('g')
-                .selectAll('line')
-                .data(networkData.links)
-                .join('line')
-                .attr('stroke', metrics[currentMetric].color)
-                .attr('stroke-opacity', 0.3)
-                .attr('stroke-width', d => Math.sqrt(d.value) * 2);
-
-            const node = svg.append('g')
-                .selectAll('circle')
-                .data(networkData.nodes)
-                .join('circle')
-                .attr('r', 15)
-                .attr('fill', metrics[currentMetric].color)
-                .attr('opacity', 0.8);
-
-            const text = svg.append('g')
-                .selectAll('text')
-                .data(networkData.nodes)
-                .join('text')
-                .text(d => d.id)
-                .attr('font-size', '11px')
-                .attr('text-anchor', 'middle')
-                .attr('dy', '0.3em')
-                .attr('fill', '#fff')
+                .text(d => d.name)
+                .attr('fill', '#333')
                 .style('pointer-events', 'none');
 
-            simulation.on('tick', () => {
-                link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-                    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-                node.attr('cx', d => d.x).attr('cy', d => d.y);
-                text.attr('x', d => d.x).attr('y', d => d.y);
-            });
+            updateMetricDisplay();
         }
 
-        async function initSectors() {
-            const container = document.getElementById('sectors');
-            if (container.innerHTML.includes('sector-card')) return;
-
-            await loadData();
+        function switchMetric(metric, btn) {
+            currentMetric = metric;
             
-            container.innerHTML = '';
+            document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            renderSankey();
+        }
 
-            if (globalData && globalData.sectors) {
-                Object.entries(globalData.sectors).slice(0, 20).forEach(([code, sector]) => {
-                    const card = document.createElement('div');
-                    card.className = 'sector-card';
-                    const value = sector[currentMetric] || 100;
-                    const hue = (value / 500) * 360;
-                    card.style.background = `hsl(${hue}, 70%, 50%)`;
-                    
-                    card.innerHTML = `<h3>${sector.name}</h3><p>${metrics[currentMetric].label}: ${value}</p>`;
-                    container.appendChild(card);
-                });
+        function updateMetricDisplay() {
+            document.getElementById('current-metric').textContent = metricLabels[currentMetric];
+            
+            if (sankey_data) {
+                const total = sankey_data.nodes.reduce((sum, n) => sum + (n[currentMetric] || 0), 0);
+                document.getElementById('total-impact').textContent = total.toFixed(0);
             }
         }
 
-        function switchTab(tab) {
-            document.querySelectorAll('.visualization').forEach(v => v.classList.add('hidden'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            
-            document.getElementById(tab).classList.remove('hidden');
-            event.target.classList.add('active');
-
-            if (tab === 'map') initMap();
-            else if (tab === 'sankey') initSankey();
-            else if (tab === 'network') initNetwork();
-            else if (tab === 'sectors') initSectors();
+        function getMetricColor(metric) {
+            const colors = {
+                'carbon': '#8B0000',
+                'water': '#0066CC',
+                'energy': '#FFB800',
+                'land': '#228B22',
+                'toxicity': '#FF4500',
+                'waste': '#696969',
+                'acidification': '#CC6600',
+                'eutrophication': '#00CC66',
+                'ozone': '#9933FF',
+                'smog': '#CC3333',
+                'human_health': '#FF0066',
+                'respiratory': '#FF6600',
+                'carcinogenics': '#990000',
+                'radiation': '#00FF99',
+                'ecotoxicity': '#00AA99',
+                'resource_depletion': '#8B6914',
+                'mining': '#663300'
+            };
+            return colors[metric] || '#667eea';
         }
 
-        function selectMetric(metric, btn) {
-            currentMetric = metric;
-            document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('current-metric').textContent = metrics[metric].label;
+        function showTooltip(event, text) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = text;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY + 10) + 'px';
         }
 
-        window.addEventListener('load', async () => {
-            await loadData();
-            await loadSankey();
-            await initMap();
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        window.addEventListener('load', loadData);
+        window.addEventListener('resize', () => {
+            if (sankey_data) renderSankey();
         });
     </script>
 </body>
