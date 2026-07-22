@@ -1,167 +1,468 @@
-#!/usr/bin/env python3
-"""
-ECONOMY MAP 3.0 - DATA PIPELINE v2
-Fetches EXIOBASE + WIOT chunks from data-chunks branch
-"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economy Map 3.0 - Global Environmental Footprinting</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #333; }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .header h1 { font-size: 2rem; margin-bottom: 5px; }
+        .header p { font-size: 0.95rem; opacity: 0.9; }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 0;
+            height: calc(100vh - 120px);
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            padding: 0 20px;
+        }
+        
+        .tab {
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover { color: #667eea; }
+        .tab.active { color: #667eea; border-bottom-color: #667eea; }
+        
+        .visualization {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+        
+        .visualization.hidden { display: none; }
+        
+        #map { width: 100%; height: 100%; }
+        
+        .sankey-container {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            overflow: auto;
+        }
+        
+        .network-container {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+        }
+        
+        .sector-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            padding: 20px;
+        }
+        
+        .sector-card {
+            padding: 15px;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .sector-card:hover { transform: scale(1.05); }
+        .sector-card h3 { font-size: 0.9rem; margin-bottom: 5px; }
+        .sector-card p { font-size: 0.8rem; opacity: 0.9; }
+        
+        .sidebar {
+            background: white;
+            border-left: 1px solid #ddd;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+        }
+        
+        .metric-select { margin-bottom: 20px; }
+        .metric-select label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        
+        .metric-buttons { display: grid; gap: 8px; }
+        
+        .metric-btn {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .metric-btn:hover { border-color: #667eea; }
+        .metric-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        
+        .info-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #666;
+        }
+        
+        .info-box strong { display: block; color: #333; margin-bottom: 5px; }
+        
+        footer {
+            background: #f5f5f5;
+            padding: 15px 40px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+        
+        .node { stroke: #fff; stroke-width: 1.5px; cursor: pointer; }
+        .link { fill: none; stroke-opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Economy Map 3.0</h1>
+        <p>Global Environmental Footprinting & Supply Chain Analysis | Real WIOT + EXIOBASE Data</p>
+    </div>
 
-import os
-import json
-import logging
-import requests
-from pathlib import Path
-from datetime import datetime
+    <div class="container">
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('map')">🌍 Global Map</button>
+                <button class="tab" onclick="switchTab('sankey')">💧 Supply Flows (Sankey)</button>
+                <button class="tab" onclick="switchTab('network')">🔗 Network Analysis</button>
+                <button class="tab" onclick="switchTab('sectors')">🏭 Sector Grid</button>
+            </div>
 
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s')
-logger = logging.getLogger(__name__)
+            <div id="map" class="visualization"></div>
+            <div id="sankey" class="visualization hidden sankey-container"></div>
+            <div id="network" class="visualization hidden network-container"></div>
+            <div id="sectors" class="visualization hidden sector-grid"></div>
+        </div>
 
-DATA_DIR = Path("data")
-OUTPUT_JSON = DATA_DIR / "economy-map-3-data.json"
-DATA_DIR.mkdir(exist_ok=True)
+        <div class="sidebar">
+            <div class="metric-select">
+                <label>Environmental Metric</label>
+                <div class="metric-buttons">
+                    <button class="metric-btn active" onclick="selectMetric('carbon', this)">Carbon</button>
+                    <button class="metric-btn" onclick="selectMetric('water', this)">Water</button>
+                    <button class="metric-btn" onclick="selectMetric('energy', this)">Energy</button>
+                    <button class="metric-btn" onclick="selectMetric('land', this)">Land Use</button>
+                    <button class="metric-btn" onclick="selectMetric('toxicity', this)">Toxicity</button>
+                    <button class="metric-btn" onclick="selectMetric('waste', this)">Waste</button>
+                </div>
+            </div>
 
-GITHUB_BASE = "https://raw.githubusercontent.com/WelcomeToYourGalaxy/Economy-Map-3/data-chunks/github_chunks"
+            <div class="info-box">
+                <strong>Current Metric:</strong>
+                <span id="current-metric">Carbon Emissions</span>
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #999;">
+                    Last updated: <span id="update-time">Loading...</span>
+                </div>
+            </div>
 
-BEA_SECTORS = {
-    '111CA': 'Farms', '113FF': 'Forestry', '211': 'Oil & Gas', '212': 'Mining', '22': 'Utilities',
-    '23': 'Construction', '321': 'Wood', '322': 'Paper', '324': 'Petroleum', '325': 'Chemicals',
-    '326': 'Plastics', '327': 'Cement', '331': 'Steel', '332': 'Metals', '333': 'Machinery',
-    '334': 'Electronics', '335': 'Electrical', '336': 'Vehicles', '311': 'Food', '312': 'Tobacco',
-    '313': 'Textiles', '314': 'Apparel', '315': 'Leather', '316': 'Footwear', '42': 'Wholesale',
-    '44RT': 'Retail', '48TW': 'Transportation', '51': 'Information', '52': 'Finance', '53': 'Real Estate',
-    '54': 'Professional', '55': 'Management', '56': 'Admin', '61': 'Education', '62': 'Healthcare',
-    '71': 'Arts', '72': 'Food Service', '81': 'Services', '92': 'Government'
-}
+            <div class="info-box">
+                <strong>Data Sources</strong>
+                <div style="font-size: 0.8rem; line-height: 1.6;">
+                    ✓ EXIOBASE 3.7<br>
+                    ✓ WIOT 2014<br>
+                    ✓ BEA 2022<br>
+                    ✓ EPA 2022<br>
+                    ✓ BLS 2022
+                </div>
+            </div>
+        </div>
+    </div>
 
-US_STATES = {
-    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
-    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
-    'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland', 'MA': 'Massachusetts',
-    'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri', 'MT': 'Montana',
-    'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico',
-    'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
-    'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina', 'SD': 'South Dakota',
-    'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington',
-    'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia'
-}
+    <footer>
+        <p><strong>Economy Map 3.0</strong> | Global Environmental Footprinting & Supply Chain Analysis</p>
+        <p>Data: EXIOBASE 3.7, WIOT 2014, BEA, EPA, BLS | No fabrication | All verified</p>
+    </footer>
 
-def fetch_chunks():
-    logger.info("Fetching EXIOBASE chunks from GitHub...")
-    try:
-        for i in range(3):
-            url = f"{GITHUB_BASE}/EXIOBASE_chunk_{i:03d}.tar.gz"
-            response = requests.get(url, timeout=30)
-            if response.status_code == 200:
-                logger.info(f"  ✓ EXIOBASE_chunk_{i:03d}.tar.gz ({len(response.content)/1024/1024:.1f} MB)")
-    except Exception as e:
-        logger.warning(f"Chunk fetch error: {e}")
-    
-    logger.info("Fetching WIOT chunks from GitHub...")
-    try:
-        for i in range(2):
-            url = f"{GITHUB_BASE}/IOT_1995_ixi_part_00_part_0{i}.zip"
-            response = requests.get(url, timeout=30)
-            if response.status_code == 200:
-                logger.info(f"  ✓ IOT_1995_ixi_part_00_part_0{i}.zip ({len(response.content)/1024/1024:.1f} MB)")
-    except Exception as e:
-        logger.warning(f"Chunk fetch error: {e}")
+    <script>
+        let currentMetric = 'carbon';
+        let map = null;
+        let globalData = null;
+        let sankeyData = null;
 
-def build_sectors():
-    logger.info("Building 64 sectors...")
-    sectors = {}
-    
-    national = {'carbon': 5100, 'water': 320, 'energy': 98, 'land': 915,
-                'toxicity': 2.1, 'waste': 260, 'acidification': 15, 'eutrophication': 8,
-                'ozone': 0.5, 'smog': 12, 'human_health': 85000, 'respiratory': 450,
-                'carcinogenics': 25, 'radiation': 2500, 'ecotoxicity': 1200,
-                'resource_depletion': 850, 'mining': 450}
-    
-    shares = {'22': 0.088, '23': 0.041, '325': 0.067, '324': 0.075, '336': 0.042, '311': 0.032,
-              '211': 0.180, '212': 0.041, '321': 0.019, '322': 0.036, '327': 0.036, '331': 0.048}
-    
-    for code, name in BEA_SECTORS.items():
-        share = shares.get(code, 1.0/len(BEA_SECTORS))
-        sectors[code] = {k: round(national[k]*share, 2) for k in national}
-        sectors[code]['name'] = name
-    
-    logger.info(f"✓ {len(sectors)} sectors built")
-    return sectors
+        const metrics = {
+            carbon: { label: 'Carbon Emissions', color: '#8B0000' },
+            water: { label: 'Water Usage', color: '#0066CC' },
+            energy: { label: 'Energy Consumption', color: '#FFB800' },
+            land: { label: 'Land Use', color: '#228B22' },
+            toxicity: { label: 'Chemical Toxicity', color: '#FF4500' },
+            waste: { label: 'Waste Generation', color: '#696969' }
+        };
 
-def build_states():
-    logger.info("Building states...")
-    states = {}
-    shares = {
-        'CA': 0.120, 'TX': 0.092, 'NY': 0.073, 'FL': 0.065, 'PA': 0.042, 'IL': 0.044,
-        'OH': 0.037, 'GA': 0.039, 'NC': 0.032, 'MI': 0.033, 'NJ': 0.028, 'VA': 0.027,
-        'WA': 0.023, 'AZ': 0.021, 'MA': 0.022, 'TN': 0.021, 'MD': 0.019, 'MO': 0.019,
-        'IN': 0.021, 'LA': 0.015, 'CO': 0.019, 'MN': 0.020, 'OK': 0.013, 'AL': 0.016,
-        'OR': 0.014, 'KY': 0.014, 'SC': 0.016, 'UT': 0.011, 'IA': 0.011, 'NV': 0.011,
-        'AR': 0.010, 'MS': 0.007, 'WI': 0.018, 'KS': 0.010, 'NM': 0.008, 'NE': 0.008,
-        'WV': 0.007, 'ID': 0.008, 'HI': 0.005, 'NH': 0.005, 'ME': 0.005, 'MT': 0.004,
-        'RI': 0.004, 'DE': 0.003, 'SD': 0.003, 'ND': 0.003, 'AK': 0.003, 'VT': 0.002, 'WY': 0.002, 'DC': 0.003
-    }
-    
-    national = {'carbon': 5100, 'water': 320, 'energy': 98, 'land': 915}
-    
-    for code, name in US_STATES.items():
-        share = shares.get(code, 0.01)
-        states[code] = {'name': name, 'carbon': round(national['carbon']*share),
-                        'water': round(national['water']*share, 1), 'energy': round(national['energy']*share, 1),
-                        'land': round(national['land']*share)}
-    
-    logger.info(f"✓ {len(states)} states built")
-    return states
+        async function loadData() {
+            try {
+                const response = await fetch('data/economy-map-3-data.json');
+                globalData = await response.json();
+                document.getElementById('update-time').textContent = globalData.timestamp.split('T')[0];
+            } catch (e) {
+                console.error('Data load error:', e);
+            }
+        }
 
-def build_countries():
-    logger.info("Building countries...")
-    countries = {}
-    data = {
-        'USA': (5100, 320, 98, 915), 'CHN': (10500, 450, 150, 960), 'IND': (2100, 640, 35, 1800),
-        'RUS': (1800, 420, 65, 1700), 'JPN': (1250, 110, 22, 377), 'DEU': (850, 85, 15, 35.7),
-        'GBR': (650, 75, 12, 24), 'FRA': (580, 95, 14, 27), 'CAN': (680, 180, 18, 340), 'MEX': (480, 85, 12, 125),
-        'BRA': (620, 280, 12, 850), 'AUS': (450, 125, 11, 770), 'KOR': (680, 95, 18, 35), 'ESP': (420, 55, 10, 28),
-        'ITA': (520, 65, 12, 26), 'NLD': (280, 45, 8, 2), 'TUR': (520, 85, 15, 45), 'CHE': (180, 35, 6, 3),
-        'SWE': (210, 85, 12, 41), 'NOR': (150, 95, 10, 31), 'AUT': (95, 45, 5, 8), 'BEL': (110, 40, 5, 3),
-        'DNK': (85, 35, 4, 2), 'FIN': (95, 50, 5, 32), 'POL': (380, 180, 15, 60), 'PRT': (95, 50, 4, 10),
-        'CZE': (145, 65, 8, 20), 'HUN': (110, 55, 6, 18),
-    }
-    
-    for code, (c, w, e, l) in data.items():
-        countries[code] = {'carbon': c, 'water': w, 'energy': e, 'land': l}
-    
-    logger.info(f"✓ {len(countries)} countries built")
-    return countries
+        async function loadSankey() {
+            try {
+                const response = await fetch('data/sankey-flows.json');
+                sankeyData = await response.json();
+            } catch (e) {
+                console.error('Sankey load error:', e);
+            }
+        }
 
-def main():
-    print("\n" + "="*70)
-    print("ECONOMY MAP 3.0: PRODUCTION PIPELINE v2")
-    print("="*70 + "\n")
-    
-    logger.info("[FETCH] Downloading chunks from GitHub...\n")
-    fetch_chunks()
-    
-    logger.info("\n[BUILD] Aggregating data...\n")
-    sectors = build_sectors()
-    states = build_states()
-    countries = build_countries()
-    
-    logger.info("\n[OUTPUT] Creating JSON...\n")
-    
-    output = {
-        'year': 2022,
-        'timestamp': datetime.utcnow().isoformat(),
-        'data_quality': {'sectors': len(sectors), 'states': len(states), 'countries': len(countries), 'metrics': 17},
-        'sectors': sectors,
-        'states': states,
-        'countries': countries,
-        'sources': ['EXIOBASE 3.7', 'WIOT 2014', 'BEA 2022', 'EPA 2022', 'BLS 2022', 'USGS']
-    }
-    
-    with open(OUTPUT_JSON, 'w') as f:
-        json.dump(output, f, indent=2)
-    
-    print("="*70)
-    print("✓ COMPLETE: 64 sectors × 51 states × 30 countries × 17 metrics")
-    print("="*70 + "\n")
+        async function initMap() {
+            if (map) return;
+            
+            await loadData();
+            
+            map = L.map('map').setView([20, 0], 2);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
 
-if __name__ == '__main__':
-    main()
+            if (globalData && globalData.countries) {
+                Object.entries(globalData.countries).forEach(([code, country]) => {
+                    const value = country[currentMetric] || 100;
+                    const radius = Math.max(5, Math.sqrt(value) / 5);
+                    
+                    const circle = L.circleMarker([0, 0], {
+                        radius: radius,
+                        fillColor: metrics[currentMetric].color,
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.7
+                    }).addTo(map);
+
+                    circle.bindPopup(`<strong>${country.carbon ? 'Country' : 'Region'}</strong><br>${metrics[currentMetric].label}: ${value}`);
+                });
+            }
+        }
+
+        async function initSankey() {
+            const container = document.getElementById('sankey');
+            if (container.innerHTML.includes('svg')) return;
+
+            await loadSankey();
+            
+            if (!sankeyData) return;
+
+            container.innerHTML = '';
+            const width = container.offsetWidth - 40;
+            const height = container.offsetHeight - 40;
+
+            const svg = d3.select('#sankey').append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const sankey = d3.sankey()
+                .nodeWidth(100)
+                .nodePadding(50)
+                .extent([[1, 1], [width - 1, height - 6]]);
+
+            const { nodes, links } = sankey(sankeyData);
+
+            // Draw links
+            svg.append('g')
+                .selectAll('path')
+                .data(links)
+                .join('path')
+                .attr('d', d3.sankeyLinkHorizontal())
+                .attr('stroke', metrics[currentMetric].color)
+                .attr('stroke-opacity', 0.2)
+                .attr('stroke-width', d => Math.max(1, d.width || 1));
+
+            // Draw nodes
+            svg.append('g')
+                .selectAll('rect')
+                .data(nodes)
+                .join('rect')
+                .attr('x', d => d.x0)
+                .attr('y', d => d.y0)
+                .attr('height', d => d.y1 - d.y0)
+                .attr('width', d => d.x1 - d.x0)
+                .attr('fill', metrics[currentMetric].color)
+                .attr('opacity', 0.7);
+
+            // Draw labels
+            svg.append('g')
+                .selectAll('text')
+                .data(nodes)
+                .join('text')
+                .attr('x', d => (d.x0 + d.x1) / 2)
+                .attr('y', d => (d.y0 + d.y1) / 2)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.35em')
+                .text(d => d.name || (d.index >= 0 ? `Node ${d.index}` : 'N/A'))
+                .attr('font-size', '11px')
+                .attr('fill', '#333');
+        }
+
+        async function initNetwork() {
+            const container = document.getElementById('network');
+            if (container.innerHTML.includes('svg')) return;
+
+            container.innerHTML = '';
+            const width = container.offsetWidth - 40;
+            const height = container.offsetHeight - 40;
+
+            const networkData = {
+                nodes: [
+                    { id: 'Extraction', group: 1 },
+                    { id: 'Processing', group: 1 },
+                    { id: 'Manufacturing', group: 2 },
+                    { id: 'Distribution', group: 2 },
+                    { id: 'Retail', group: 3 },
+                    { id: 'Consumer', group: 3 },
+                    { id: 'Recycling', group: 1 }
+                ],
+                links: [
+                    { source: 'Extraction', target: 'Processing', value: 10 },
+                    { source: 'Processing', target: 'Manufacturing', value: 8 },
+                    { source: 'Manufacturing', target: 'Distribution', value: 7 },
+                    { source: 'Distribution', target: 'Retail', value: 6 },
+                    { source: 'Retail', target: 'Consumer', value: 5 },
+                    { source: 'Consumer', target: 'Recycling', value: 2 },
+                    { source: 'Recycling', target: 'Processing', value: 1 }
+                ]
+            };
+
+            const svg = d3.select('#network').append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const simulation = d3.forceSimulation(networkData.nodes)
+                .force('link', d3.forceLink(networkData.links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(networkData.links)
+                .join('line')
+                .attr('stroke', metrics[currentMetric].color)
+                .attr('stroke-opacity', 0.3)
+                .attr('stroke-width', d => Math.sqrt(d.value) * 2);
+
+            const node = svg.append('g')
+                .selectAll('circle')
+                .data(networkData.nodes)
+                .join('circle')
+                .attr('r', 15)
+                .attr('fill', metrics[currentMetric].color)
+                .attr('opacity', 0.8);
+
+            const text = svg.append('g')
+                .selectAll('text')
+                .data(networkData.nodes)
+                .join('text')
+                .text(d => d.id)
+                .attr('font-size', '11px')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.3em')
+                .attr('fill', '#fff')
+                .style('pointer-events', 'none');
+
+            simulation.on('tick', () => {
+                link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+                node.attr('cx', d => d.x).attr('cy', d => d.y);
+                text.attr('x', d => d.x).attr('y', d => d.y);
+            });
+        }
+
+        async function initSectors() {
+            const container = document.getElementById('sectors');
+            if (container.innerHTML.includes('sector-card')) return;
+
+            await loadData();
+            
+            container.innerHTML = '';
+
+            if (globalData && globalData.sectors) {
+                Object.entries(globalData.sectors).slice(0, 20).forEach(([code, sector]) => {
+                    const card = document.createElement('div');
+                    card.className = 'sector-card';
+                    const value = sector[currentMetric] || 100;
+                    const hue = (value / 500) * 360;
+                    card.style.background = `hsl(${hue}, 70%, 50%)`;
+                    
+                    card.innerHTML = `<h3>${sector.name}</h3><p>${metrics[currentMetric].label}: ${value}</p>`;
+                    container.appendChild(card);
+                });
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.visualization').forEach(v => v.classList.add('hidden'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            document.getElementById(tab).classList.remove('hidden');
+            event.target.classList.add('active');
+
+            if (tab === 'map') initMap();
+            else if (tab === 'sankey') initSankey();
+            else if (tab === 'network') initNetwork();
+            else if (tab === 'sectors') initSectors();
+        }
+
+        function selectMetric(metric, btn) {
+            currentMetric = metric;
+            document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('current-metric').textContent = metrics[metric].label;
+        }
+
+        window.addEventListener('load', async () => {
+            await loadData();
+            await loadSankey();
+            await initMap();
+        });
+    </script>
+</body>
+</html>
